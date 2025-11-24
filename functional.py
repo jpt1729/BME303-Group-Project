@@ -42,13 +42,13 @@ class Species:
 class Velociraptor(Species):
     def __init__(self):
         super().__init__(
-            strength=0.5,  # medium
-            speed=0.8,  # very high
-            toughness=0.2,  # low
-            coordination=0.8,  # very high
-            health=50,  # medium
-            reproduction_rate=0.4,  # medium
-            survivability=0.8
+            strength=0.6,  # medium
+            speed=0.75,  # very high
+            toughness=0.35,  # low
+            coordination=0.85,  # very high
+            health=55,  # medium
+            reproduction_rate=0.6,  # medium
+            survivability=0.975
         )
 
 
@@ -56,13 +56,13 @@ class Velociraptor(Species):
 class TRex(Species):
     def __init__(self):
         super().__init__(
-            strength=0.9,  # very high
+            strength=0.95,  # very high
             speed=0.6,  # medium/high
             toughness=0.7,  # high
-            coordination=0.1,  # very low
-            health=80,  # high
-            reproduction_rate=0.2,  # low
-            survivability=0.8
+            coordination=0.25,  # very low
+            health=90,  # high
+            reproduction_rate=0.33,  # low
+            survivability=0.975
         )
 
 
@@ -77,7 +77,7 @@ class Triceratops(Species):
             health=60,  # medium
             reproduction_rate=0.35,  # high
             harvest_rate=0.4,  # medium/high
-            survivability=0.7
+            survivability=0.71
         )
 
 
@@ -90,9 +90,9 @@ class Brachiosaurus(Species):
             toughness=0.8,  # very high
             coordination=0.2,  # very low
             health=100,  # very high
-            reproduction_rate=0.15,  # very low
+            reproduction_rate=0.25,  # very low
             harvest_rate=0.5,  # medium
-            survivability=0.75
+            survivability=0.78
         )
 
 
@@ -102,12 +102,12 @@ class Human(Species):
         super().__init__(
             strength=0.3,  # low
             speed=0.6,  # medium/high
-            toughness=0.7,  # high
+            toughness=0.55,  # high
             coordination=0.9,  # very high
             health=30,  # very low
             reproduction_rate=0.3,  # medium
-            harvest_rate=0.2,  # low/medium
-            survivability=0.8
+            harvest_rate=0.15,  # low/medium
+            survivability=0.825
         )
 
     def tame(self, target_species):
@@ -218,7 +218,7 @@ def update_states(domain):
                             if (nr, nc) not in tamed_dinos:
                                 human = species_stats[5]
                                 if human.tame(neighbor_species):
-                                    tamed_dinos[(nr, nc)] = 5  # tamed for 5 rounds
+                                    tamed_dinos[(nr, nc)] = 5  # tamed for 3 rounds
                                     continue
 
                         # check if it's valid prey
