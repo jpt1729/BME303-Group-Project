@@ -1,328 +1,314 @@
-import numpy as np
 import random
 
-# Species constants
-GRASS = 0
-TRICERATOPS = 1
-BRACHIOSAURUS = 2
-VELOCIRAPTOR = 3
-TREX = 4
-HUMAN = 5
 
-# Ecological parameters
-GRASS_REGROW_RATE = 0.15  # Probability grass regrows in empty cell
-HERBIVORE_REPRODUCTION_RATE = 0.12  # Reproduction rate for herbivores when well-fed
-HERBIVORE_STARVATION_RATE = 0.08  # Death rate when no food nearby
-CARNIVORE_REPRODUCTION_RATE = 0.10  # Reproduction rate for carnivores after successful hunt
-CARNIVORE_STARVATION_RATE = 0.15  # Death rate when no prey nearby
-HUMAN_REPRODUCTION_RATE = 0.05  # Reproduction rate in safe zones
-HUMAN_DEATH_RATE = 0.35  # Death rate when near predators
+# parent class for all species
+class Species:
+    def __init__(self, strength, speed, toughness, coordination, health, reproduction_rate, survivability,
+                 harvest_rate=0):
+        self.strength = strength
+        self.speed = speed
+        self.toughness = toughness
+        self.coordination = coordination
+        self.health = health
+        self.reproduction_rate = reproduction_rate
+        self.survivability = survivability  # chance to survive random death each round
+        self.harvest_rate = harvest_rate
+        self.tamed_rounds = 0  # number of rounds of dino tamed
+
+    def attack(self, target_health, target_toughness, coord_bonus=1.0):
+        # damage dealt and gives kill chance
+        damage = self.strength * coord_bonus * (1 - target_toughness)
+        kill_chance = damage / target_health
+        return kill_chance
+
+    def move(self):
+        # True if species moves this turn
+        return random.random() < self.speed
+
+    def reproduce(self):
+        # if species reproduces
+        return random.random() < self.reproduction_rate
+
+    def survives_round(self):
+        #True if species survives random death
+        return random.random() < self.survivability
+
+    def harvest(self):
+        # True if herbivore successfully harvests
+        return random.random() < self.harvest_rate
 
 
-def get_neighbors(domain, x, y):
-    """Get all 8 neighbors of a cell"""
+# Velociraptor class
+class Velociraptor(Species):
+    def __init__(self):
+        super().__init__(
+            strength=0.5,  # medium
+            speed=0.8,  # very high
+            toughness=0.2,  # low
+            coordination=0.8,  # very high
+            health=50,  # medium
+            reproduction_rate=0.4,  # medium
+            survivability=0.4
+        )
+
+
+# T-Rex class
+class TRex(Species):
+    def __init__(self):
+        super().__init__(
+            strength=0.9,  # very high
+            speed=0.6,  # medium/high
+            toughness=0.7,  # high
+            coordination=0.1,  # very low
+            health=80,  # high
+            reproduction_rate=0.2,  # low
+            survivability=0.4
+        )
+
+
+# Triceratops class
+class Triceratops(Species):
+    def __init__(self):
+        super().__init__(
+            strength=0.5,  # medium
+            speed=0.5,  # medium
+            toughness=0.5,  # medium
+            coordination=0.5,  # medium
+            health=60,  # medium
+            reproduction_rate=0.7,  # high
+            harvest_rate=0.65,  # medium/high
+            survivability=0.4
+        )
+
+
+# Brachiosaurus class
+class Brachiosaurus(Species):
+    def __init__(self):
+        super().__init__(
+            strength=0.8,  # very high
+            speed=0.2,  # very low
+            toughness=0.8,  # very high
+            coordination=0.2,  # very low
+            health=100,  # very high
+            reproduction_rate=0.15,  # very low
+            harvest_rate=0.5,  # medium
+            survivability=0.4
+        )
+
+
+# Human class
+class Human(Species):
+    def __init__(self):
+        super().__init__(
+            strength=0.3,  # low
+            speed=0.6,  # medium/high
+            toughness=0.7,  # high
+            coordination=0.9,  # very high
+            health=30,  # very low
+            reproduction_rate=0.4,  # medium
+            harvest_rate=0.4,  # low/medium
+            survivability=0.55
+        )
+
+    def tame(self, target_species):
+        # humans tame raptors and t-rexes to make them docile for 5 rounds
+        if target_species in [1, 2]:  # raptor/Trex
+            if random.random() < 0.3:  # 30% chance to tame
+                return True
+        return False
+
+species_stats = {
+    1: Velociraptor(),
+    2: TRex(),
+    3: Triceratops(),
+    4: Brachiosaurus(),
+    5: Human()
+}
+# tame length (key = (row, col), value = # of rounds left)
+tamed_dinos = {}
+
+
+def get_neighbors(domain, row, col):
+    # checks adjacent tiles
     neighbors = []
     rows, cols = domain.shape
-
-    for dx in [-1, 0, 1]:
-        for dy in [-1, 0, 1]:
-            if dx == 0 and dy == 0:
+    for neighbor_row in [-1, 0, 1]:
+        for neigbor_column in [-1, 0, 1]:
+            if neighbor_row == 0 and neigbor_column == 0:
                 continue
-            nx, ny = x + dx, y + dy
-            if 0 <= nx < rows and 0 <= ny < cols:
-                neighbors.append((nx, ny, domain[nx, ny]))
-
+            new_row = row + neighbor_row
+            new_col = col + neigbor_column
+            if 0 <= new_row < rows and 0 <= new_col < cols:
+                neighbors.append((new_row, new_col))
     return neighbors
 
 
-def count_species_nearby(neighbors, species):
-    """Count how many neighbors are of a specific species"""
-    return sum(1 for _, _, n_species in neighbors if n_species == species)
-
-
-def get_empty_neighbors(neighbors):
-    """Get list of empty (grass) neighbor positions"""
-    return [(x, y) for x, y, species in neighbors if species == GRASS]
+def count_same_species_neighbors(domain, row, col, species_type):
+    # count how many of the same species are adjacent
+    neighbors = get_neighbors(domain, row, col)
+    count = 0
+    for nr, nc in neighbors:
+        if domain[nr, nc] == species_type:
+            count += 1
+    return count
 
 
 def update_states(domain):
-    """Update the states of all cells based on ecological interactions"""
-    new_domain = domain.copy()
+    # for interactions between species per round
     rows, cols = domain.shape
+    new_domain = domain.copy()
 
+    # update tamed status
+    global tamed_dinos
+    tame_remove = []
+    for pos in tamed_dinos:
+        tamed_dinos[pos] -= 1
+        if tamed_dinos[pos] <= 0:
+            tame_remove.append(pos)
+    for pos in tame_remove:
+        del tamed_dinos[pos]
+
+    # iterates through each cell and kills randomly based on survivability stat
     for i in range(rows):
         for j in range(cols):
             current = domain[i, j]
-            neighbors = get_neighbors(domain, i, j)
+            if current != 0 and current in species_stats:
+                species = species_stats[current]
+                # check using survives_round()
+                if not species.survives_round():
+                    new_domain[i, j] = 0  # dies and then becomes grass
+                    continue
 
-            if current == GRASS:
-                # Grass can be eaten by herbivores or regrow
-                herbivores_nearby = count_species_nearby(neighbors, TRICERATOPS) + \
-                                    count_species_nearby(neighbors, BRACHIOSAURUS)
-
-                # Grass gets eaten with higher probability when more herbivores nearby
-                if herbivores_nearby > 0 and random.random() < 0.25 * herbivores_nearby:
-                    new_domain[i, j] = GRASS  # Stays grass (eaten)
-
-            elif current == TRICERATOPS:
-                # Triceratops: herbivore, needs grass, afraid of predators
-                grass_nearby = count_species_nearby(neighbors, GRASS)
-                predators_nearby = count_species_nearby(neighbors, VELOCIRAPTOR) + \
-                                   count_species_nearby(neighbors, TREX)
-
-                # Gets eaten by predators
-                if predators_nearby > 0 and random.random() < 0.35:
-                    new_domain[i, j] = GRASS
-                # Starves without grass
-                elif grass_nearby == 0 and random.random() < HERBIVORE_STARVATION_RATE:
-                    new_domain[i, j] = GRASS
-                # Reproduces when plenty of grass
-                elif grass_nearby >= 3 and random.random() < HERBIVORE_REPRODUCTION_RATE:
-                    empty = get_empty_neighbors(neighbors)
-                    if empty:
-                        rx, ry = random.choice(empty)
-                        new_domain[rx, ry] = TRICERATOPS
-
-            elif current == BRACHIOSAURUS:
-                # Brachiosaurus: large herbivore, needs more grass, harder to kill
-                grass_nearby = count_species_nearby(neighbors, GRASS)
-                predators_nearby = count_species_nearby(neighbors, VELOCIRAPTOR) + \
-                                   count_species_nearby(neighbors, TREX)
-
-                # Large size makes it MUCH harder to kill (only T-Rex or large pack of raptors)
-                trex_nearby = count_species_nearby(neighbors, TREX)
-                raptor_nearby = count_species_nearby(neighbors, VELOCIRAPTOR)
-
-                if trex_nearby >= 2 and random.random() < 0.20:  # Needs multiple T-Rex
-                    new_domain[i, j] = GRASS
-                elif raptor_nearby >= 4 and random.random() < 0.25:  # Needs large pack
-                    new_domain[i, j] = GRASS
-                # Starves without sufficient grass
-                elif grass_nearby < 2 and random.random() < HERBIVORE_STARVATION_RATE:
-                    new_domain[i, j] = GRASS
-                # Reproduces when lots of grass
-                elif grass_nearby >= 4 and random.random() < HERBIVORE_REPRODUCTION_RATE * 0.8:
-                    empty = get_empty_neighbors(neighbors)
-                    if empty:
-                        rx, ry = random.choice(empty)
-                        new_domain[rx, ry] = BRACHIOSAURUS
-
-            elif current == VELOCIRAPTOR:
-                # Velociraptor: pack hunter, targets herbivores
-                prey_nearby = count_species_nearby(neighbors, TRICERATOPS) + \
-                              count_species_nearby(neighbors, BRACHIOSAURUS)
-                raptor_nearby = count_species_nearby(neighbors, VELOCIRAPTOR)
-                humans_nearby = count_species_nearby(neighbors, HUMAN)
-
-                # Hunts herbivores (more effective in packs)
-                if prey_nearby > 0:
-                    hunt_success = 0.20 + (0.10 * raptor_nearby)  # Pack bonus
-                    if random.random() < hunt_success:
-                        # Successful hunt, can reproduce
-                        if random.random() < CARNIVORE_REPRODUCTION_RATE and raptor_nearby >= 1:
-                            empty = get_empty_neighbors(neighbors)
-                            if empty:
-                                rx, ry = random.choice(empty)
-                                new_domain[rx, ry] = VELOCIRAPTOR
-                # Can also hunt humans (intelligent hunters)
-                elif humans_nearby > 0 and raptor_nearby >= 2 and random.random() < 0.25:
-                    # Pack hunts human
-                    pass
-                # Starves without prey
-                elif prey_nearby == 0 and humans_nearby == 0 and random.random() < CARNIVORE_STARVATION_RATE:
-                    new_domain[i, j] = GRASS
-
-            elif current == TREX:
-                # T-Rex: apex predator, hunts everything
-                herbivore_nearby = count_species_nearby(neighbors, TRICERATOPS) + \
-                                   count_species_nearby(neighbors, BRACHIOSAURUS)
-                raptor_nearby = count_species_nearby(neighbors, VELOCIRAPTOR)
-                human_nearby = count_species_nearby(neighbors, HUMAN)
-
-                total_prey = herbivore_nearby + raptor_nearby + human_nearby
-
-                # T-Rex hunts successfully
-                if total_prey > 0 and random.random() < 0.40:
-                    # Successful hunt, can reproduce
-                    if random.random() < CARNIVORE_REPRODUCTION_RATE * 0.7:  # Lower reproduction
-                        empty = get_empty_neighbors(neighbors)
-                        if empty:
-                            rx, ry = random.choice(empty)
-                            new_domain[rx, ry] = TREX
-                # Starves without prey (but survives longer)
-                elif total_prey == 0 and random.random() < CARNIVORE_STARVATION_RATE * 0.6:
-                    new_domain[i, j] = GRASS
-
-            elif current == HUMAN:
-                # Human: intelligent, avoids predators, survives in safe zones, hunts in groups
-                predators_nearby = count_species_nearby(neighbors, TREX) + \
-                                   count_species_nearby(neighbors, VELOCIRAPTOR)
-                herbivores_nearby = count_species_nearby(neighbors, TRICERATOPS) + \
-                                    count_species_nearby(neighbors, BRACHIOSAURUS)
-                raptors_nearby = count_species_nearby(neighbors, VELOCIRAPTOR)
-                other_humans = count_species_nearby(neighbors, HUMAN)
-
-                # Humans hunt in groups (3+ humans can hunt herbivores, 5+ can hunt raptors)
-                if other_humans >= 3 and herbivores_nearby > 0 and random.random() < 0.15:
-                    # Successful group hunt on herbivore - humans reproduce
-                    empty = get_empty_neighbors(neighbors)
-                    if empty and random.random() < 0.3:
-                        rx, ry = random.choice(empty)
-                        new_domain[rx, ry] = HUMAN
-                elif other_humans >= 5 and raptors_nearby > 0 and random.random() < 0.10:
-                    # Successful group hunt on raptor - humans reproduce
-                    empty = get_empty_neighbors(neighbors)
-                    if empty and random.random() < 0.25:
-                        rx, ry = random.choice(empty)
-                        new_domain[rx, ry] = HUMAN
-                # Gets eaten by predators
-                elif predators_nearby > 0:
-                    death_prob = HUMAN_DEATH_RATE * predators_nearby
-                    if random.random() < death_prob:
-                        new_domain[i, j] = GRASS
-                # Reproduces in safe zones with other humans
-                elif predators_nearby == 0 and other_humans >= 1 and random.random() < HUMAN_REPRODUCTION_RATE:
-                    empty = get_empty_neighbors(neighbors)
-                    if empty:
-                        rx, ry = random.choice(empty)
-                        new_domain[rx, ry] = HUMAN
-
-    # Grass regrowth pass
+    # iterates thru each cell
     for i in range(rows):
         for j in range(cols):
-            if new_domain[i, j] == GRASS:
-                neighbors = get_neighbors(new_domain, i, j)
-                grass_nearby = count_species_nearby(neighbors, GRASS)
+            current = new_domain[i, j]
+            # skip past veg tile
+            if current == 0:
+                continue
 
-                # Grass regrows better near other grass
-                if grass_nearby >= 2 and random.random() < GRASS_REGROW_RATE:
-                    new_domain[i, j] = GRASS
+            # species stats
+            if current in species_stats:
+                species = species_stats[current]
+                neighbors = get_neighbors(new_domain, i, j)
+
+                if current in [3, 4, 5]:  # triceratops, brachiosaurus, human
+                    # check for adjacent grass to harvest
+                    for nr, nc in neighbors:
+                        if new_domain[nr, nc] == 0:  # grass tile
+                            if species.harvest():
+                                # try to reproduce
+                                if species.reproduce():
+                                    # find empty grass tile to place offspring
+                                    empty_neighbors = [(r, c) for r, c in neighbors if new_domain[r, c] == 0]
+                                    if empty_neighbors:
+                                        spawn_r, spawn_c = random.choice(empty_neighbors)
+                                        new_domain[spawn_r, spawn_c] = current
+                                break
+
+                # Carnivores hunt
+                if current in [1, 2, 5]:  # velociraptor, t-rex, human
+                    # look for prey
+                    prey_neighbors = []
+                    for nr, nc in neighbors:
+                        neighbor_species = new_domain[nr, nc]
+
+                        # humans try to tame first
+                        if current == 5 and neighbor_species in [1, 2]:
+                            if (nr, nc) not in tamed_dinos:
+                                human = species_stats[5]
+                                if human.tame(neighbor_species):
+                                    tamed_dinos[(nr, nc)] = 5  # tamed for 5 rounds
+                                    continue
+
+                        # check if it's valid prey
+                        if neighbor_species == 0:  # grass, skip
+                            continue
+                        if current == neighbor_species:  # same species, skip
+                            continue
+                        if (nr, nc) in tamed_dinos:  # tamed dino, humans can't attack
+                            if current == 5:
+                                continue
+
+                        # herbivores don't attack humans or other herbivores
+                        if current in [3, 4]:
+                            if neighbor_species in [1, 2]:  # only attack carnivores
+                                prey_neighbors.append((nr, nc, neighbor_species))
+                        else:
+                            prey_neighbors.append((nr, nc, neighbor_species))
+
+                    # attack a random prey
+                    if prey_neighbors:
+                        target_r, target_c, target_species = random.choice(prey_neighbors)
+
+                        # calculate coordination bonus
+                        same_species_count = count_same_species_neighbors(new_domain, i, j, current)
+                        coord_bonus = 1 + (species.coordination * same_species_count * 0.1)
+
+                        # use attack method to calculate kill chance
+                        target_stats = species_stats[target_species]
+                        kill_chance = species.attack(target_stats.health, target_stats.toughness, coord_bonus)
+
+                        # check if target dies
+                        if random.random() < kill_chance:
+                            # target dies
+                            new_domain[target_r, target_c] = 0  # becomes grass
+
+                            # carnivore tries to reproduce
+                            if current in [1, 2]:
+                                # reproduction chance varies by what was killed
+                                base_repro = species.reproduction_rate
+                                if target_species == 4:  # brachiosaurus
+                                    repro_chance = base_repro * 1.5
+                                elif target_species == 2:  # trex
+                                    repro_chance = base_repro * 1.3
+                                elif target_species == 3:  # triceratops
+                                    repro_chance = base_repro * 1.1
+                                elif target_species == 1:  # velociraptor
+                                    repro_chance = base_repro * 0.9
+                                elif target_species == 5:  # human
+                                    repro_chance = base_repro * 0.7
+                                else:
+                                    repro_chance = base_repro
+
+                                if random.random() < repro_chance:
+                                    new_domain[target_r, target_c] = current
 
     return new_domain
 
 
 def update_positions(domain):
-    """Update positions - animals move to adjacent cells"""
-    new_domain = domain.copy()
+    # this function handles movement of species
     rows, cols = domain.shape
-    moved = np.zeros_like(domain, dtype=bool)
+    new_domain = domain.copy()
 
-    # Randomize order of cell updates to avoid bias
-    indices = [(i, j) for i in range(rows) for j in range(cols)]
-    random.shuffle(indices)
+    # create a list of all non-grass positions
+    positions = []
+    for i in range(rows):
+        for j in range(cols):
+            if domain[i, j] != 0:
+                positions.append((i, j))
 
-    for i, j in indices:
-        if moved[i, j]:
-            continue
+    # shuffle to randomize movement order
+    random.shuffle(positions)
 
+    for i, j in positions:
         current = domain[i, j]
-
-        # Grass doesn't move
-        if current == GRASS:
+        if current == 0:
             continue
 
-        neighbors = get_neighbors(domain, i, j)
+        # check if this species moves
+        if current in species_stats:
+            species = species_stats[current]
+            if species.move():
+                # find adjacent empty grass tiles
+                neighbors = get_neighbors(domain, i, j)
+                empty_neighbors = [(r, c) for r, c in neighbors if new_domain[r, c] == 0]
 
-        if current == TRICERATOPS:
-            # Moves toward grass, away from predators
-            grass_neighbors = [(x, y) for x, y, s in neighbors if s == GRASS]
-            predator_neighbors = [(x, y) for x, y, s in neighbors if s in [VELOCIRAPTOR, TREX]]
-
-            if predator_neighbors and grass_neighbors:
-                # Flee from predators
-                target = random.choice(grass_neighbors)
-                new_domain[i, j] = GRASS
-                new_domain[target[0], target[1]] = TRICERATOPS
-                moved[target[0], target[1]] = True
-            elif grass_neighbors and random.random() < 0.3:
-                # Move toward food
-                target = random.choice(grass_neighbors)
-                new_domain[i, j] = GRASS
-                new_domain[target[0], target[1]] = TRICERATOPS
-                moved[target[0], target[1]] = True
-
-        elif current == BRACHIOSAURUS:
-            # Moves slowly toward grass
-            grass_neighbors = [(x, y) for x, y, s in neighbors if s == GRASS]
-            if grass_neighbors and random.random() < 0.2:  # Slower movement
-                target = random.choice(grass_neighbors)
-                new_domain[i, j] = GRASS
-                new_domain[target[0], target[1]] = BRACHIOSAURUS
-                moved[target[0], target[1]] = True
-
-        elif current == VELOCIRAPTOR:
-            # Moves toward prey or toward other raptors (pack behavior)
-            prey_neighbors = [(x, y) for x, y, s in neighbors if s in [TRICERATOPS, BRACHIOSAURUS, HUMAN]]
-            raptor_neighbors = [(x, y) for x, y, s in neighbors if s == VELOCIRAPTOR]
-            empty_neighbors = [(x, y) for x, y, s in neighbors if s == GRASS]
-
-            if prey_neighbors and random.random() < 0.5:
-                # Chase prey
-                target = random.choice(prey_neighbors)
-                new_domain[i, j] = GRASS
-                new_domain[target[0], target[1]] = VELOCIRAPTOR
-                moved[target[0], target[1]] = True
-            elif empty_neighbors and random.random() < 0.4:
-                # Roam
-                target = random.choice(empty_neighbors)
-                new_domain[i, j] = GRASS
-                new_domain[target[0], target[1]] = VELOCIRAPTOR
-                moved[target[0], target[1]] = True
-
-        elif current == TREX:
-            # Moves toward any prey
-            prey_neighbors = [(x, y) for x, y, s in neighbors if s in [TRICERATOPS, BRACHIOSAURUS, VELOCIRAPTOR, HUMAN]]
-            empty_neighbors = [(x, y) for x, y, s in neighbors if s == GRASS]
-
-            if prey_neighbors and random.random() < 0.4:
-                # Chase prey
-                target = random.choice(prey_neighbors)
-                new_domain[i, j] = GRASS
-                new_domain[target[0], target[1]] = TREX
-                moved[target[0], target[1]] = True
-            elif empty_neighbors and random.random() < 0.3:
-                # Roam
-                target = random.choice(empty_neighbors)
-                new_domain[i, j] = GRASS
-                new_domain[target[0], target[1]] = TREX
-                moved[target[0], target[1]] = True
-
-        elif current == HUMAN:
-            # Moves away from predators, toward other humans or herbivores (safer)
-            # Can also move strategically toward prey when in groups
-            predator_neighbors = [(x, y) for x, y, s in neighbors if s in [VELOCIRAPTOR, TREX]]
-            safe_neighbors = [(x, y) for x, y, s in neighbors if s == GRASS]
-            human_neighbors = [(x, y) for x, y, s in neighbors if s == HUMAN]
-            herbivore_neighbors = [(x, y) for x, y, s in neighbors if s in [TRICERATOPS, BRACHIOSAURUS]]
-            raptor_neighbors = [(x, y) for x, y, s in neighbors if s == VELOCIRAPTOR]
-
-            # Count nearby humans to determine if they should hunt
-            nearby_humans = count_species_nearby(neighbors, HUMAN)
-
-            if predator_neighbors and safe_neighbors:
-                # Flee from predators
-                furthest = safe_neighbors[0] if safe_neighbors else None
-                if furthest and random.random() < 0.6:
-                    new_domain[i, j] = GRASS
-                    new_domain[furthest[0], furthest[1]] = HUMAN
-                    moved[furthest[0], furthest[1]] = True
-            elif nearby_humans >= 3 and herbivore_neighbors and random.random() < 0.3:
-                # Group hunting behavior - move toward herbivores
-                target = random.choice(herbivore_neighbors)
-                new_domain[i, j] = GRASS
-                new_domain[target[0], target[1]] = HUMAN
-                moved[target[0], target[1]] = True
-            elif nearby_humans >= 5 and raptor_neighbors and random.random() < 0.2:
-                # Large group hunting - move toward raptors
-                target = random.choice(raptor_neighbors)
-                new_domain[i, j] = GRASS
-                new_domain[target[0], target[1]] = HUMAN
-                moved[target[0], target[1]] = True
-            elif safe_neighbors and random.random() < 0.3:
-                # Normal movement
-                target = random.choice(safe_neighbors)
-                new_domain[i, j] = GRASS
-                new_domain[target[0], target[1]] = HUMAN
-                moved[target[0], target[1]] = True
+                if empty_neighbors:
+                    # move to random empty neighbor
+                    new_r, new_c = random.choice(empty_neighbors)
+                    new_domain[new_r, new_c] = current
+                    new_domain[i, j] = 0
 
     return new_domain
