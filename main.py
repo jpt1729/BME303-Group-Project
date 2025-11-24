@@ -43,15 +43,15 @@ def main():
     for i in range(sizeY):
         for j in range(sizeX):
             rand_val = random.random()
-            if rand_val < 0.6:  # 60% grass
+            if rand_val < 0.5:  # 60% grass
                 domain[i, j] = 0
-            elif rand_val < 0.72:  # 12% velociraptor
+            elif rand_val < 0.65:  # 15% velociraptor
                 domain[i, j] = 1
-            elif rand_val < 0.74:  # 2% t-rex
+            elif rand_val < 0.70:  # 5% t-rex
                 domain[i, j] = 2
-            elif rand_val < 0.86:  # 12% triceratops
+            elif rand_val < 0.84:  # 14% triceratops
                 domain[i, j] = 3
-            elif rand_val < 0.89:  # 3% brachiosaurus
+            elif rand_val < 0.89:  # 5% brachiosaurus
                 domain[i, j] = 4
             else:  # 11% human
                 domain[i, j] = 5
