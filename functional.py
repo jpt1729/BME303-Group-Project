@@ -48,7 +48,7 @@ class Velociraptor(Species):
             coordination=0.8,  # very high
             health=50,  # medium
             reproduction_rate=0.4,  # medium
-            survivability=0.4
+            survivability=0.8
         )
 
 
@@ -62,7 +62,7 @@ class TRex(Species):
             coordination=0.1,  # very low
             health=80,  # high
             reproduction_rate=0.2,  # low
-            survivability=0.4
+            survivability=0.8
         )
 
 
@@ -75,9 +75,9 @@ class Triceratops(Species):
             toughness=0.5,  # medium
             coordination=0.5,  # medium
             health=60,  # medium
-            reproduction_rate=0.7,  # high
-            harvest_rate=0.65,  # medium/high
-            survivability=0.4
+            reproduction_rate=0.35,  # high
+            harvest_rate=0.4,  # medium/high
+            survivability=0.7
         )
 
 
@@ -92,7 +92,7 @@ class Brachiosaurus(Species):
             health=100,  # very high
             reproduction_rate=0.15,  # very low
             harvest_rate=0.5,  # medium
-            survivability=0.4
+            survivability=0.75
         )
 
 
@@ -105,9 +105,9 @@ class Human(Species):
             toughness=0.7,  # high
             coordination=0.9,  # very high
             health=30,  # very low
-            reproduction_rate=0.4,  # medium
-            harvest_rate=0.4,  # low/medium
-            survivability=0.55
+            reproduction_rate=0.3,  # medium
+            harvest_rate=0.2,  # low/medium
+            survivability=0.8
         )
 
     def tame(self, target_species):
