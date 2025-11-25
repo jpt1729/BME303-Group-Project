@@ -3,7 +3,7 @@ import time
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib import colors
-import functions as el  # Custom module containing the update functions for the simulation
+import functional as el  # Custom module containing the update functions for the simulation
 
 
 # Function to plot the spatial distribution of the environment
