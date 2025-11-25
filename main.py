@@ -38,7 +38,7 @@ def main():
     random.seed(time.time())
     sizeX, sizeY = 50, 50  # increased domain size to 50x50
 
-    # Initialize domain with weighted probabilities - more grass at start
+    # different initial spawn rates
     domain = np.zeros((sizeY, sizeX), dtype=int)
     for i in range(sizeY):
         for j in range(sizeX):
