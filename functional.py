@@ -36,6 +36,8 @@ class Species:
     def harvest(self):
         # True if herbivore successfully harvests
         return random.random() < self.harvest_rate
+    
+    def __eq__(self, other): return other == self.__class__.__name__ # makes code more readable
 
 
 # Velociraptor class
@@ -133,11 +135,11 @@ def get_neighbors(domain, row, col):
     neighbors = []
     rows, cols = domain.shape
     for neighbor_row in [-1, 0, 1]:
-        for neigbor_column in [-1, 0, 1]:
-            if neighbor_row == 0 and neigbor_column == 0:
+        for neighbor_column in [-1, 0, 1]:
+            if neighbor_row == 0 and neighbor_column == 0:
                 continue
             new_row = row + neighbor_row
-            new_col = col + neigbor_column
+            new_col = col + neighbor_column
             if 0 <= new_row < rows and 0 <= new_col < cols:
                 neighbors.append((new_row, new_col))
     return neighbors
