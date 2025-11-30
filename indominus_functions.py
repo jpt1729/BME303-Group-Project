@@ -56,12 +56,13 @@ class Velociraptor(Species):
 class IRex(Species):
     def __init__(self):
         super().__init__(
-            strength=1.00,  # very high
-            speed=1.00,  # medium/high
-            toughness=1.00,  # high
-            coordination=1.00,  # very low
-            health=100,  # high
-            reproduction_rate=0.9,  # low
+            #all stats very high
+            strength=1.00,
+            speed=1.00,
+            toughness=1.00,
+            coordination=1.00,
+            health=100, 
+            reproduction_rate=0.9, 
             survivability=1.00
         )
 
