@@ -280,7 +280,7 @@ def update_states(domain):
 
 
 def update_positions(domain):
-    # this function handles movement of species
+    # movement of species
     rows, cols = domain.shape
     new_domain = domain.copy()
 
@@ -291,7 +291,7 @@ def update_positions(domain):
             if domain[i, j] != 0:
                 positions.append((i, j))
 
-    # shuffle to randomize movement order
+    # shuffle to randomize movement order so it doesnt just give precedence to top right species
     random.shuffle(positions)
 
     for i, j in positions:
@@ -308,7 +308,7 @@ def update_positions(domain):
                 empty_neighbors = [(r, c) for r, c in neighbors if new_domain[r, c] == 0]
 
                 if empty_neighbors:
-                    # move to random empty neighbor
+                    # move to random empty neighbor aka grass tile
                     new_r, new_c = random.choice(empty_neighbors)
                     new_domain[new_r, new_c] = current
                     new_domain[i, j] = 0
